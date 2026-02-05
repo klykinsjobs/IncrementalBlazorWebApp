@@ -1,0 +1,117 @@
+﻿@page "/"
+@implements IDisposable
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h1 class="game-title">Incremental Game</h1>
+
+<div class="resource-panel">
+    <p><strong>Gold:</strong> @Gold</p>
+</div>
+
+<div class="generators">
+    <div class="gen">
+        <h3>Miner</h3>
+        <p>Owned: @MinerCount</p>
+        <p>Cost: @MinerCost</p>
+        <button @onclick="BuyMiner">Buy Miner</button>
+    </div>
+
+    <div class="gen">
+        <h3>Drill</h3>
+        <p>Owned: @DrillCount</p>
+        <p>Cost: @DrillCost</p>
+        <button @onclick="BuyDrill">Buy Drill</button>
+    </div>
+
+    <div class="gen">
+        <h3>Excavator</h3>
+        <p>Owned: @ExcavatorCount</p>
+        <p>Cost: @ExcavatorCost</p>
+        <button @onclick="BuyExcavator">Buy Excavator</button>
+    </div>
+</div>
+
+@code {
+    public int Gold { get; set; } = 0;
+
+    public int MinerCount { get; set; } = 1;
+    public int DrillCount { get; set; } = 0;
+    public int ExcavatorCount { get; set; } = 0;
+
+    public int MinerCost { get; set; } = 10;
+    public int DrillCost { get; set; } = 50;
+    public int ExcavatorCost { get; set; } = 200;
+
+    private const int MinerRate = 1;
+    private const int DrillRate = 5;
+    private const int ExcavatorRate = 20;
+
+    private readonly PeriodicTimer _timer = new(TimeSpan.FromSeconds(1));
+    private readonly CancellationTokenSource _cts = new();
+
+    private bool _gameWon = false;
+
+    protected override void OnInitialized()
+    {
+        _ = RunGameLoop();
+    }
+
+    private async Task RunGameLoop()
+    {
+        while (await _timer.WaitForNextTickAsync(_cts.Token))
+        {
+            if (_gameWon)
+                break;
+
+            Gold += MinerCount * MinerRate;
+            Gold += DrillCount * DrillRate;
+            Gold += ExcavatorCount * ExcavatorRate;
+
+            if (Gold >= 1_000_000 && !_gameWon)
+            {
+                _gameWon = true;
+                _cts.Cancel();
+                await JS.InvokeVoidAsync("gameWin");
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void BuyMiner()
+    {
+        if (Gold >= MinerCost)
+        {
+            Gold -= MinerCost;
+            MinerCount++;
+            MinerCost = (int)(MinerCost * 1.15);
+        }
+    }
+
+    private void BuyDrill()
+    {
+        if (Gold >= DrillCost)
+        {
+            Gold -= DrillCost;
+            DrillCount++;
+            DrillCost = (int)(DrillCost * 1.15);
+        }
+    }
+
+    private void BuyExcavator()
+    {
+        if (Gold >= ExcavatorCost)
+        {
+            Gold -= ExcavatorCost;
+            ExcavatorCount++;
+            ExcavatorCost = (int)(ExcavatorCost * 1.15);
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}
