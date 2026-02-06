@@ -59,23 +59,30 @@
 
     private async Task RunGameLoop()
     {
-        while (await _timer.WaitForNextTickAsync(_cts.Token))
+        try
         {
-            if (_gameWon)
-                break;
-
-            Gold += MinerCount * MinerRate;
-            Gold += DrillCount * DrillRate;
-            Gold += ExcavatorCount * ExcavatorRate;
-
-            if (Gold >= 1_000_000 && !_gameWon)
+            while (await _timer.WaitForNextTickAsync(_cts.Token))
             {
-                _gameWon = true;
-                _cts.Cancel();
-                await JS.InvokeVoidAsync("gameWin");
-            }
+                if (_gameWon)
+                    break;
 
-            await InvokeAsync(StateHasChanged);
+                Gold += MinerCount * MinerRate;
+                Gold += DrillCount * DrillRate;
+                Gold += ExcavatorCount * ExcavatorRate;
+
+                if (Gold >= 1_000_000 && !_gameWon)
+                {
+                    _gameWon = true;
+                    _cts.Cancel();
+                    await JS.InvokeVoidAsync("gameWin");
+                }
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown
         }
     }
 
